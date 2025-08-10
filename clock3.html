@@ -352,6 +352,14 @@
     let rotateX = 0;
     let rotateY = 0;
     const rotationSpeed = 2; // 每次按键旋转的角度
+
+    // 触控相关变量
+    let isTouching = false;
+    let lastTouchX = 0;
+    let lastTouchY = 0;
+    let startRotateX = 0;
+    let startRotateY = 0;
+    const touchSpeed = 0.3; // 触控灵敏度
     
     // 音频可视化相关
     let audioContext;
@@ -738,6 +746,34 @@
       // 应用旋转
       clock.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
     }
+
+    // 处理触摸事件（移动端旋转）
+    function handleTouchStart(e) {
+      if (e.touches.length === 1) {
+        isTouching = true;
+        lastTouchX = e.touches[0].clientX;
+        lastTouchY = e.touches[0].clientY;
+        startRotateX = rotateX;
+        startRotateY = rotateY;
+      }
+    }
+
+    function handleTouchMove(e) {
+      if (!isTouching || e.touches.length !== 1) return;
+      const deltaX = e.touches[0].clientX - lastTouchX;
+      const deltaY = e.touches[0].clientY - lastTouchY;
+      // 横向滑动控制Y轴旋转，纵向滑动控制X轴旋转
+      rotateY = startRotateY + deltaX * touchSpeed;
+      rotateX = startRotateX - deltaY * touchSpeed;
+      // 限制上下旋转角度
+      if (rotateX > 60) rotateX = 60;
+      if (rotateX < -60) rotateX = -60;
+      clock.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+    }
+
+    function handleTouchEnd(e) {
+      isTouching = false;
+    }
     
     // 确保DOM加载完成后初始化
     window.addEventListener('load', () => {
@@ -759,6 +795,15 @@
           audioContext.resume();
         }
       }, { once: true });
+      // 移动端适配：添加触摸事件监听
+      function isMobile() {
+        return /Android|iPhone|iPad|iPod|Mobile|Windows Phone/i.test(navigator.userAgent);
+      }
+      if (isMobile()) {
+        clock.addEventListener('touchstart', handleTouchStart, { passive: false });
+        clock.addEventListener('touchmove', handleTouchMove, { passive: false });
+        clock.addEventListener('touchend', handleTouchEnd, { passive: false });
+      }
     });
   </script>
 </body>
