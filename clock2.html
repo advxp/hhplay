@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aurora Analog Clock</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome -->
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  
+  <script>
+    // 配置Tailwind自定义颜色
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            aurora: {
+              blue: '#00f0ff',
+              purple: '#9d4edd',
+              pink: '#ff00a0',
+              green: '#05ffa1',
+              dark: 'rgba(10, 10, 30, 0.7)'
+            }
+          },
+          fontFamily: {
+            digital: ['Orbitron', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+  
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .text-shadow-glow {
+        text-shadow: 0 0 10px currentColor, 0 0 20px currentColor, 0 0 30px currentColor, 0 0 40px currentColor;
+      }
+      .clock-hand {
+        transform-origin: bottom center;
+        position: absolute;
+        bottom: 50%;
+        left: 50%;
+        border-radius: 50% 50% 0 0;
+      }
+      .clock-marker {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        text-align: center;
+        transform-origin: center;
+      }
+    }
+    
+    /* 数字风格字体 */
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&display=swap');
+  </style>
+</head>
+<body class="m-0 p-0 overflow-hidden h-screen w-screen font-digital relative">
+  <!-- 极光背景Canvas -->
+  <canvas id="auroraCanvas" class="absolute top-0 left-0 w-full h-full z-0"></canvas>
+  
+  <!-- 时钟容器 -->
+  <div class="relative z-10 flex flex-col items-center justify-center h-full w-full p-4">
+    <!-- 圆盘时钟 -->
+    <div class="relative w-[280px] h-[280px] md:w-[400px] md:h-[400px] mb-8">
+      <!-- 时钟外圈 -->
+      <div class="absolute inset-0 rounded-full border-4 border-aurora-blue/30 bg-aurora-dark backdrop-blur-sm shadow-[0_0_30px_rgba(0,240,255,0.2)]"></div>
+      
+      <!-- 时钟刻度将通过JS生成 -->
+      
+      <!-- 时针 -->
+      <div id="hourHand" class="clock-hand w-3 h-[35%] bg-aurora-purple shadow-[0_0_10px_rgba(157,78,221,0.7)]"></div>
+      
+      <!-- 分针 -->
+      <div id="minuteHand" class="clock-hand w-2 h-[45%] bg-aurora-pink shadow-[0_0_10px_rgba(255,0,160,0.7)]"></div>
+      
+      <!-- 秒针 -->
+      <div id="secondHand" class="clock-hand w-1 h-[50%] bg-aurora-green shadow-[0_0_10px_rgba(5,255,161,0.7)]"></div>
+      
+      <!-- 中心圆点 -->
+      <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-aurora-blue shadow-[0_0_15px_rgba(0,240,255,0.8)]"></div>
+    </div>
+    
+    <!-- 日期和时间文本显示 -->
+    <div id="date" class="text-xl md:text-2xl font-semibold text-white/80 text-shadow-glow mt-4 text-center"></div>
+    <div id="timeText" class="text-lg md:text-xl font-medium text-white/70 mt-2"></div>
+    
+    <!-- 额外信息 -->
+    <div class="absolute bottom-6 left-0 right-0 text-center text-white/60 text-sm md:text-base">
+      <p>Northern Lights | <i class="fa fa-map-marker mr-1"></i> Arctic Circle</p>
+    </div>
+  </div>
+
+  <script>
+    // 获取Canvas元素并设置尺寸
+    const canvas = document.getElementById('auroraCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // 设置Canvas尺寸为窗口尺寸
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    
+    // 初始化时设置尺寸
+    resizeCanvas();
+    // 窗口大小改变时重新设置尺寸
+    window.addEventListener('resize', resizeCanvas);
+    
+    // 极光粒子类
+    class AuroraParticle {
+      constructor() {
+        this.reset();
+      }
+      
+      reset() {
+        // 随机位置
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        
+        // 随机大小
+        this.size = Math.random() * 3 + 1;
+        
+        // 随机速度
+        this.speedX = (Math.random() - 0.5) * 0.5;
+        this.speedY = (Math.random() - 0.5) * 0.5;
+        
+        // 随机颜色 - 北极极光通常是绿色、蓝色、紫色
+        const colors = [
+          'rgba(0, 240, 255, ',    // 蓝色
+          'rgba(157, 78, 221, ',   // 紫色
+          'rgba(255, 0, 160, ',    // 粉色
+          'rgba(5, 255, 161, '     // 绿色
+        ];
+        this.color = colors[Math.floor(Math.random() * colors.length)];
+        
+        // 透明度
+        this.alpha = Math.random() * 0.5 + 0.1;
+      }
+      
+      update() {
+        // 更新位置
+        this.x += this.speedX;
+        this.y += this.speedY;
+        
+        // 边界检查 - 超出画布范围则重置
+        if (this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height) {
+          this.reset();
+        }
+      }
+      
+      draw() {
+        // 绘制粒子
+        ctx.fillStyle = this.color + this.alpha + ')';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    
+    // 创建极光粒子数组
+    const particlesArray = [];
+    const numberOfParticles = 500;
+    
+    // 初始化粒子
+    for (let i = 0; i < numberOfParticles; i++) {
+      particlesArray.push(new AuroraParticle());
+    }
+    
+    // 绘制极光背景
+    function drawAurora() {
+      // 创建渐变背景
+      const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      gradient.addColorStop(0, 'rgba(10, 10, 30, 0.9)');    // 顶部深色
+      gradient.addColorStop(1, 'rgba(20, 20, 50, 0.95)');   // 底部稍亮
+      
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // 绘制模糊效果层，使动画更平滑
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // 更新和绘制所有粒子
+      for (let i = 0; i < particlesArray.length; i++) {
+        particlesArray[i].update();
+        particlesArray[i].draw();
+      }
+      
+      // 创建光带效果
+      for (let i = 0; i < 5; i++) {
+        drawLightBand();
+      }
+      
+      requestAnimationFrame(drawAurora);
+    }
+    
+    // 绘制光带
+    function drawLightBand() {
+      const colors = [
+        'rgba(0, 240, 255, 0.1)',    // 蓝色
+        'rgba(157, 78, 221, 0.1)',   // 紫色
+        'rgba(255, 0, 160, 0.1)',    // 粉色
+        'rgba(5, 255, 161, 0.1)'     // 绿色
+      ];
+      
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      
+      ctx.beginPath();
+      ctx.moveTo(0, Math.random() * canvas.height);
+      
+      // 创建波浪形状，随时间流动
+      for (let x = 0; x < canvas.width; x += 50) {
+        const y = Math.sin(x * 0.01 + Date.now() * 0.001) * 100 + (canvas.height / 2) + (Math.random() * 200 - 100);
+        ctx.lineTo(x, y);
+      }
+      
+      ctx.lineTo(canvas.width, canvas.height);
+      ctx.lineTo(0, canvas.height);
+      ctx.closePath();
+      
+      ctx.fillStyle = color;
+      ctx.fill();
+    }
+    
+    // 开始绘制极光背景
+    drawAurora();
+    
+    // 创建时钟刻度
+    function createClockMarkers() {
+      const clockContainer = document.querySelector('.relative.w-\\[280px\\]');
+      
+      // 小时刻度
+      for (let i = 1; i <= 12; i++) {
+        const angle = (i * 30) * Math.PI / 180; // 每小时30度
+        const isHourMarker = i % 3 === 0; // 每3小时一个大刻度
+        
+        const marker = document.createElement('div');
+        marker.className = `clock-marker text-aurora-blue text-shadow-glow ${isHourMarker ? 'text-lg md:text-xl font-bold' : 'text-sm md:text-base'}`;
+        marker.style.transform = `rotate(${angle}rad)`;
+        
+        // 创建刻度元素
+        const markerElement = document.createElement('div');
+        markerElement.textContent = i;
+        markerElement.className = 'transform -rotate-[var(--rotation)] inline-block';
+        markerElement.style.setProperty('--rotation', `${angle}rad`);
+        markerElement.style.marginTop = '10px';
+        
+        marker.appendChild(markerElement);
+        clockContainer.appendChild(marker);
+      }
+      
+      // 分钟小刻度
+      for (let i = 0; i < 60; i++) {
+        if (i % 5 === 0) continue; // 跳过小时刻度的位置
+        
+        const angle = (i * 6) * Math.PI / 180; // 每分钟6度
+        
+        const marker = document.createElement('div');
+        marker.className = 'clock-marker';
+        marker.style.transform = `rotate(${angle}rad)`;
+        
+        // 创建小刻度线
+        const markerLine = document.createElement('div');
+        markerLine.className = 'w-1 h-2 bg-aurora-blue/50 mx-auto';
+        markerLine.style.marginTop = '10px';
+        
+        marker.appendChild(markerLine);
+        clockContainer.appendChild(marker);
+      }
+    }
+    
+    // 初始化时钟刻度
+    createClockMarkers();
+    
+    // 时钟功能
+    function updateClock() {
+      const now = new Date();
+      
+      // 获取时间组件
+      const hours = now.getHours();
+      const minutes = now.getMinutes();
+      const seconds = now.getSeconds();
+      const milliseconds = now.getMilliseconds();
+      
+      // 计算指针角度（以度为单位）
+      const secondsAngle = (seconds + milliseconds / 1000) * 6; // 每秒6度
+      const minutesAngle = (minutes + seconds / 60) * 6; // 每分钟6度
+      const hoursAngle = (hours % 12 + minutes / 60) * 30; // 每小时30度
+      
+      // 更新指针位置
+      document.getElementById('hourHand').style.transform = `translateX(-50%) rotate(${hoursAngle}deg)`;
+      document.getElementById('minuteHand').style.transform = `translateX(-50%) rotate(${minutesAngle}deg)`;
+      document.getElementById('secondHand').style.transform = `translateX(-50%) rotate(${secondsAngle}deg)`;
+      
+      // 确定上午/下午
+      const period = hours >= 12 ? 'PM' : 'AM';
+      
+      // 转换为12小时制
+      const displayHours = hours % 12 || 12;
+      
+      // 在数字前补零
+      const displayMinutes = String(minutes).padStart(2, '0');
+      const displaySeconds = String(seconds).padStart(2, '0');
+      
+      // 更新文本时间显示
+      document.getElementById('timeText').textContent = `${displayHours}:${displayMinutes}:${displaySeconds} ${period}`;
+      
+      // 更新日期
+      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+      
+      const dayName = days[now.getDay()];
+      const monthName = months[now.getMonth()];
+      const date = now.getDate();
+      const year = now.getFullYear();
+      
+      document.getElementById('date').textContent = `${dayName}, ${monthName} ${date}, ${year}`;
+    }
+    
+    // 初始化时钟
+    updateClock();
+    // 每10毫秒更新一次时钟，使秒针动画更平滑
+    setInterval(updateClock, 10);
+  </script>
+</body>
+</html>
+    

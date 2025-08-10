@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D立体极光时钟</title>
+  <!-- 引入Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- 引入Font Awesome -->
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  
+  <!-- 配置Tailwind自定义颜色 -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            aurora: {
+              blue: '#3B82F6',
+              purple: '#8B5CF6',
+              pink: '#EC4899',
+              cyan: '#06B6D4',
+              green: '#10B981',
+              lightgreen: '#34D399',
+              emerald: '#059669'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .content-auto {
+        content-visibility: auto;
+      }
+      .clock-hand {
+        transform-origin: bottom center;
+      }
+      .text-glow {
+        text-shadow: 0 0 10px rgba(255, 255, 255, 0.8), 0 0 20px rgba(255, 255, 255, 0.5);
+      }
+      .glass {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+      }
+      .preserve-3d {
+        transform-style: preserve-3d;
+      }
+      .perspective {
+        perspective: 1000px;
+      }
+      .backface-hidden {
+        backface-visibility: hidden;
+        -webkit-backface-visibility: hidden;
+      }
+      .music-controls {
+        transition: all 0.3s ease;
+      }
+      .music-controls:hover {
+        transform: translateY(-3px);
+      }
+    }
+  </style>
+  
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      height: 100vh;
+      background-color: #020617;
+    }
+    
+    #aurora-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: -1;
+    }
+    
+    .clock-container {
+      perspective: 1000px;
+      transform-style: preserve-3d;
+    }
+    
+    .clock {
+      position: relative;
+      width: 320px;
+      height: 320px;
+      border-radius: 50%;
+      box-shadow: 0 0 50px rgba(0, 0, 0, 0.3),
+                  inset 0 0 30px rgba(255, 255, 255, 0.1),
+                  0 0 10px rgba(16, 185, 129, 0.2);
+      transform-style: preserve-3d;
+      transition: transform 0.2s ease-out;
+      transform: rotateX(0deg) rotateY(0deg);
+      
+      /* 3D效果增强 */
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: radial-gradient(
+        circle at center,
+        rgba(255, 255, 255, 0.08) 0%,
+        rgba(255, 255, 255, 0.02) 70%,
+        transparent 100%
+      );
+    }
+    
+    /* 3D表盘边缘效果 */
+    .clock::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.3) inset;
+      transform: translateZ(-5px);
+    }
+    
+    .clock::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 110%;
+      height: 110%;
+      border-radius: 50%;
+      background: radial-gradient(
+        circle at center,
+        rgba(16, 185, 129, 0.1) 0%,
+        transparent 70%
+      );
+      transform: translate(-50%, -50%) translateZ(-10px);
+    }
+    
+    .clock-number {
+      position: absolute;
+      color: rgba(255, 255, 255, 0.9);
+      text-align: center;
+      width: 30px;
+      height: 30px;
+      line-height: 30px;
+      transform-origin: center;
+      font-size: 1.2rem;
+      font-weight: 300;
+      text-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
+      top: 50%;
+      left: 50%;
+      margin: -15px 0 0 -15px;
+      transform-style: preserve-3d;
+      backface-visibility: hidden;
+    }
+    
+    .hand {
+      position: absolute;
+      bottom: 50%;
+      left: 50%;
+      transform-origin: bottom center;
+      border-radius: 5px;
+      background-color: white;
+      box-shadow: 0 0 8px rgba(0, 0, 0, 0.4);
+      transform-style: preserve-3d;
+      backface-visibility: hidden;
+    }
+    
+    .hour-hand {
+      height: 28%;
+      width: 6px;
+      margin-left: -3px;
+      background: linear-gradient(to top, white 80%, rgba(255,255,255,0.5) 100%);
+      transform: translateZ(5px);
+    }
+    
+    .minute-hand {
+      height: 40%;
+      width: 4px;
+      margin-left: -2px;
+      background: linear-gradient(to top, white 80%, rgba(255,255,255,0.5) 100%);
+      transform: translateZ(5px);
+    }
+    
+    .second-hand {
+      height: 45%;
+      width: 2px;
+      margin-left: -1px;
+      background: linear-gradient(to top, #EC4899 80%, rgba(236,72,153,0.5) 100%);
+      transform: translateZ(5px);
+    }
+    
+    .center-dot {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) translateZ(6px);
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background-color: white;
+      box-shadow: 0 0 5px rgba(0, 0, 0, 0.5), 0 0 10px rgba(236,72,153,0.3);
+      z-index: 10;
+    }
+    
+    .small-marker {
+      position: absolute;
+      width: 2px;
+      height: 8px;
+      background-color: rgba(255, 255, 255, 0.6);
+      left: 50%;
+      top: 10px;
+      transform-origin: 50% calc(160px - 10px);
+      transform-style: preserve-3d;
+      backface-visibility: hidden;
+    }
+    
+    .control-info {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255,255,255,0.7);
+      font-size: 0.9rem;
+      padding: 8px 15px;
+      border-radius: 20px;
+      background: rgba(0,0,0,0.3);
+      backdrop-filter: blur(5px);
+      z-index: 100;
+    }
+    
+    .music-controls {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      color: rgba(255,255,255,0.8);
+      background: rgba(0,0,0,0.3);
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 100;
+      backdrop-filter: blur(5px);
+    }
+    
+    .music-visualizer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 40px;
+      z-index: 50;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 3px;
+      pointer-events: none;
+    }
+    
+    .visualizer-bar {
+      width: 3px;
+      background: linear-gradient(to top, rgba(16, 185, 129, 0.8), rgba(52, 211, 153, 0.4));
+      border-radius: 3px 3px 0 0;
+      transition: height 0.1s ease;
+    }
+    
+    @media (max-width: 640px) {
+      .clock {
+        width: 260px;
+        height: 260px;
+      }
+      
+      .small-marker {
+        transform-origin: 50% calc(130px - 10px);
+      }
+      
+      .control-info {
+        font-size: 0.8rem;
+        padding: 6px 12px;
+      }
+    }
+  </style>
+</head>
+<body class="flex items-center justify-center">
+  <!-- 极光背景Canvas -->
+  <canvas id="aurora-canvas"></canvas>
+  
+  <!-- 音乐控制按钮 -->
+  <div class="music-controls" id="music-toggle">
+    <i class="fa fa-volume-up" id="music-icon"></i>
+  </div>
+  
+  <!-- 音乐可视化效果 -->
+  <div class="music-visualizer" id="visualizer"></div>
+  
+  <!-- 控制提示 -->
+  <div class="control-info">
+    使用方向键 ← → ↑ ↓ 旋转表盘 | 点击右上角控制音乐
+  </div>
+  
+  <!-- 音频元素 -->
+  <audio id="background-music" loop>
+    <!-- 使用国内可访问的燃向音乐样本 -->
+    <source src="https://music.163.com/song/media/outer/url?id=1428579115.mp3" type="audio/mpeg">
+   您的浏览器不支持音频元素。
+  </audio>
+  
+  <!-- 时钟容器 -->
+  <div class="flex flex-col items-center justify-center p-4 z-10">
+    <div class="clock-container">
+      <div class="clock mb-6" id="clock">
+        <!-- 时钟数字将通过JS生成 -->
+        
+        <!-- 时钟指针 -->
+        <div class="hand hour-hand" id="hour-hand"></div>
+        <div class="hand minute-hand" id="minute-hand"></div>
+        <div class="hand second-hand" id="second-hand"></div>
+        
+        <!-- 中心圆点 -->
+        <div class="center-dot"></div>
+      </div>
+    </div>
+    
+    <!-- 数字时间和日期显示 -->
+    <div class="text-white text-center glass px-4 py-2 rounded-lg">
+      <div id="digital-time" class="text-[clamp(1.5rem,5vw,2.5rem)] font-light text-glow mb-2"></div>
+      <div id="date-display" class="text-[clamp(0.9rem,2vw,1.1rem)] text-white/80"></div>
+    </div>
+  </div>
+
+  <script>
+    // 获取DOM元素
+    const canvas = document.getElementById('aurora-canvas');
+    const ctx = canvas.getContext('2d');
+    const hourHand = document.getElementById('hour-hand');
+    const minuteHand = document.getElementById('minute-hand');
+    const secondHand = document.getElementById('second-hand');
+    const digitalTime = document.getElementById('digital-time');
+    const dateDisplay = document.getElementById('date-display');
+    const clock = document.getElementById('clock');
+    const musicToggle = document.getElementById('music-toggle');
+    const musicIcon = document.getElementById('music-icon');
+    const backgroundMusic = document.getElementById('background-music');
+    const visualizer = document.getElementById('visualizer');
+    
+    // 3D旋转角度
+    let rotateX = 0;
+    let rotateY = 0;
+    const rotationSpeed = 2; // 每次按键旋转的角度
+    
+    // 音频可视化相关
+    let audioContext;
+    let analyser;
+    let dataArray;
+    let source;
+    const BAR_COUNT = 64; // 可视化条数量
+    
+    // 存储极光射线
+    let auroraRays = [];
+    const MAX_RAYS = 8; // 最大射线数量
+    
+    // 设置Canvas尺寸
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    
+    // 初始化Canvas尺寸
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    
+    // 创建时钟数字和刻度
+    function createClockMarkings() {
+      // 获取时钟半径
+      const clockRadius = clock.offsetWidth / 2;
+      // 数字距离圆心的距离（半径的80%）
+      const numberRadius = clockRadius * 0.8;
+      
+      // 创建12个小时数字
+      for (let i = 1; i <= 12; i++) {
+        const number = document.createElement('div');
+        number.className = 'clock-number';
+        
+        // 计算每个数字的角度（30度一个小时，从顶部开始）
+        // 减去90度是为了让12点位置在正上方
+        const angle = (i * 30 - 90) * (Math.PI / 180);
+        
+        // 计算位置
+        const x = numberRadius * Math.cos(angle);
+        const y = numberRadius * Math.sin(angle);
+        
+        // 设置数字位置和旋转 - 添加Z轴位移增强3D效果
+        number.style.transform = `translate(${x}px, ${y}px) translateZ(10px)`;
+        number.textContent = i;
+        
+        clock.appendChild(number);
+      }
+      
+      // 创建分钟小刻度（60个，每5个为一个小时刻度）
+      for (let i = 0; i < 60; i++) {
+        // 跳过小时刻度的位置
+        if (i % 5 !== 0) {
+          const marker = document.createElement('div');
+          marker.className = 'small-marker';
+          marker.style.transform = `rotate(${i * 6}deg) translateZ(5px)`;
+          clock.appendChild(marker);
+        }
+      }
+    }
+    
+    // 创建音频可视化条
+    function createVisualizerBars() {
+      visualizer.innerHTML = '';
+      for (let i = 0; i < BAR_COUNT; i++) {
+        const bar = document.createElement('div');
+        bar.className = 'visualizer-bar';
+        bar.style.height = '2px';
+        visualizer.appendChild(bar);
+      }
+    }
+    
+    // 初始化音频上下文
+    function initAudioContext() {
+      try {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioContext.createAnalyser();
+        analyser.fftSize = 128;
+        const bufferLength = analyser.frequencyBinCount;
+        dataArray = new Uint8Array(bufferLength);
+        
+        source = audioContext.createMediaElementSource(backgroundMusic);
+        source.connect(analyser);
+        analyser.connect(audioContext.destination);
+        
+        // 开始可视化动画
+        animateVisualizer();
+      } catch (e) {
+        console.error('音频初始化失败:', e);
+      }
+    }
+    
+    // 音频可视化动画
+    function animateVisualizer() {
+      requestAnimationFrame(animateVisualizer);
+      
+      if (!analyser) return;
+      
+      analyser.getByteFrequencyData(dataArray);
+      const bars = visualizer.querySelectorAll('.visualizer-bar');
+      const sliceWidth = dataArray.length / bars.length;
+      
+      bars.forEach((bar, i) => {
+        const value = dataArray[Math.floor(i * sliceWidth)];
+        // 映射音频数据到可视高度 (0-40px)
+        const barHeight = Math.min((value / 255) * 40, 40);
+        bar.style.height = `${barHeight}px`;
+        
+        // 根据音频强度改变颜色透明度
+        const opacity = 0.4 + (value / 255) * 0.6;
+        bar.style.background = `linear-gradient(to top, rgba(16, 185, 129, ${opacity}), rgba(52, 211, 153, ${opacity * 0.6}))`;
+      });
+    }
+    
+    // 切换音乐播放状态
+    function toggleMusic() {
+      // 首次播放需要初始化音频上下文
+      if (!audioContext) {
+        initAudioContext();
+      } else if (audioContext.state === 'suspended') {
+        audioContext.resume();
+      }
+      
+      if (backgroundMusic.paused) {
+        backgroundMusic.play().catch(e => {
+          console.log('自动播放被阻止，需要用户交互:', e);
+        });
+        musicIcon.className = 'fa fa-volume-up';
+      } else {
+        backgroundMusic.pause();
+        musicIcon.className = 'fa fa-volume-off';
+      }
+    }
+    
+    // 创建随机极光射线
+    function createAuroraRay() {
+      // 主要使用绿色系，增加少量其他颜色作为点缀
+      const colors = [
+        'rgba(16, 185, 129, 0.2)',   // 绿色
+        'rgba(52, 211, 153, 0.2)',   // 浅绿色
+        'rgba(5, 150, 105, 0.2)',    // 翡翠绿
+        'rgba(6, 182, 212, 0.15)',   // 青色（少量）
+        'rgba(59, 130, 246, 0.1)'    // 蓝色（少量）
+      ];
+      
+      return {
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height * 0.5,
+        angle: (Math.random() * 60 - 30) * (Math.PI / 180), // -30到30度
+        length: canvas.height * (0.5 + Math.random() * 0.5),
+        width: 20 + Math.random() * 100,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        opacity: 0.1 + Math.random() * 0.3,
+        speed: 0.5 + Math.random() * 2,
+        phase: Math.random() * Math.PI * 2,
+        life: 300 + Math.random() * 1000, // 存在时间
+        age: 0
+      };
+    }
+    
+    // 更新极光射线
+    function updateAuroraRays() {
+      // 随机添加新射线
+      if (auroraRays.length < MAX_RAYS && Math.random() < 0.02) {
+        auroraRays.push(createAuroraRay());
+      }
+      
+      // 更新现有射线
+      for (let i = auroraRays.length - 1; i >= 0; i--) {
+        const ray = auroraRays[i];
+        ray.age++;
+        
+        // 射线缓慢移动和波动
+        ray.x += Math.cos(ray.angle) * ray.speed * 0.1;
+        ray.y += Math.sin(ray.angle) * ray.speed * 0.1;
+        ray.phase += 0.01;
+        
+        // 如果音乐在播放，让极光随音乐轻微变化
+        if (!backgroundMusic.paused && dataArray && dataArray.length > 0) {
+          const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+          const intensity = avg / 255;
+          ray.width = 20 + Math.random() * 100 + intensity * 50;
+        }
+        
+        // 移除老化的射线
+        if (ray.age > ray.life) {
+          auroraRays.splice(i, 1);
+        }
+      }
+    }
+    
+    // 绘制极光射线
+    function drawAuroraRays() {
+      auroraRays.forEach(ray => {
+        ctx.save();
+        
+        // 计算射线的终点
+        const endX = ray.x + Math.cos(ray.angle) * ray.length;
+        const endY = ray.y + Math.sin(ray.angle) * ray.length;
+        
+        // 创建渐变
+        const gradient = ctx.createLinearGradient(ray.x, ray.y, endX, endY);
+        gradient.addColorStop(0, 'transparent');
+        gradient.addColorStop(0.3, ray.color);
+        gradient.addColorStop(0.7, ray.color);
+        gradient.addColorStop(1, 'transparent');
+        
+        // 绘制射线（带有波动效果）
+        ctx.beginPath();
+        ctx.moveTo(ray.x, ray.y);
+        
+        // 使用贝塞尔曲线创建波动效果
+        const controlX1 = ray.x + Math.cos(ray.angle) * ray.length * 0.33;
+        const controlY1 = ray.y + Math.sin(ray.angle) * ray.length * 0.33 + 
+                          Math.sin(ray.phase) * ray.width * 0.3;
+                          
+        const controlX2 = ray.x + Math.cos(ray.angle) * ray.length * 0.66;
+        const controlY2 = ray.y + Math.sin(ray.angle) * ray.length * 0.66 - 
+                          Math.sin(ray.phase + Math.PI/2) * ray.width * 0.3;
+        
+        ctx.bezierCurveTo(
+          controlX1, controlY1,
+          controlX2, controlY2,
+          endX, endY
+        );
+        
+        // 绘制另一侧形成射线形状
+        ctx.lineTo(endX + Math.sin(ray.angle) * ray.width, 
+                  endY - Math.cos(ray.angle) * ray.width);
+                  
+        ctx.bezierCurveTo(
+          controlX2 + Math.sin(ray.angle) * ray.width, 
+          controlY2 - Math.cos(ray.angle) * ray.width,
+          controlX1 + Math.sin(ray.angle) * ray.width, 
+          controlY1 - Math.cos(ray.angle) * ray.width,
+          ray.x + Math.sin(ray.angle) * ray.width, 
+          ray.y - Math.cos(ray.angle) * ray.width
+        );
+        
+        ctx.closePath();
+        
+        // 应用模糊和绘制
+        ctx.filter = `blur(${ray.width * 0.5}px)`;
+        ctx.fillStyle = gradient;
+        ctx.fill();
+        
+        ctx.restore();
+      });
+    }
+    
+    // 绘制极光背景
+    function drawAurora() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // 深色背景
+      const bgGradient = ctx.createRadialGradient(
+        canvas.width / 2, canvas.height / 2, 0,
+        canvas.width / 2, canvas.height / 2, Math.max(canvas.width, canvas.height)
+      );
+      bgGradient.addColorStop(0, '#0f172a');
+      bgGradient.addColorStop(1, '#020617');
+      ctx.fillStyle = bgGradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // 更新并绘制极光射线
+      updateAuroraRays();
+      drawAuroraRays();
+      
+      // 随机生成几个基础极光层
+      for (let i = 0; i < 2; i++) {
+        drawAuroraLayer(
+          Math.random() * canvas.width,
+          Math.random() * canvas.height * 0.3,
+          Math.random() * canvas.width,
+          canvas.height * (0.7 + Math.random() * 0.3),
+          getRandomAuroraColor(),
+          100 + Math.random() * 150
+        );
+      }
+      
+      requestAnimationFrame(drawAurora);
+    }
+    
+    // 绘制单个极光层
+    function drawAuroraLayer(x1, y1, x2, y2, color, blur) {
+      // 创建渐变
+      const gradient = ctx.createLinearGradient(x1, y1, x2, y2);
+      gradient.addColorStop(0, 'transparent');
+      gradient.addColorStop(0.5, color);
+      gradient.addColorStop(1, 'transparent');
+      
+      // 保存当前状态
+      ctx.save();
+      
+      // 创建模糊效果
+      ctx.filter = `blur(${blur}px)`;
+      
+      // 绘制椭圆形状的极光
+      const width = Math.abs(x2 - x1) * 1.5;
+      const height = Math.abs(y2 - y1) * 0.8;
+      const centerX = (x1 + x2) / 2;
+      const centerY = (y1 + y2) / 2;
+      
+      ctx.beginPath();
+      ctx.ellipse(centerX, centerY, width, height, Math.PI / 4, 0, Math.PI * 2);
+      ctx.fillStyle = gradient;
+      ctx.fill();
+      
+      // 恢复状态
+      ctx.restore();
+    }
+    
+    // 获取随机极光颜色（以绿色为主）
+    function getRandomAuroraColor() {
+      const colors = [
+        'rgba(16, 185, 129, 0.3)',   // 绿色
+        'rgba(52, 211, 153, 0.3)',   // 浅绿色
+        'rgba(5, 150, 105, 0.3)',    // 翡翠绿
+        'rgba(6, 182, 212, 0.2)',    // 青色（少量）
+        'rgba(139, 92, 246, 0.2)'    // 紫色（少量）
+      ];
+      return colors[Math.floor(Math.random() * colors.length)];
+    }
+    
+    // 更新时钟指针位置
+    function updateClock() {
+      const now = new Date();
+      
+      // 计算时间角度
+      const seconds = now.getSeconds();
+      const minutes = now.getMinutes() + seconds / 60;
+      const hours = (now.getHours() % 12) + minutes / 60;
+      
+      // 转换为角度（360度）
+      const secondAngle = seconds * 6;  // 6度/秒
+      const minuteAngle = minutes * 6;  // 6度/分钟
+      const hourAngle = hours * 30;     // 30度/小时
+      
+      // 应用旋转
+      secondHand.style.transform = `translateX(-50%) rotate(${secondAngle}deg) translateZ(5px)`;
+      minuteHand.style.transform = `translateX(-50%) rotate(${minuteAngle}deg) translateZ(5px)`;
+      hourHand.style.transform = `translateX(-50%) rotate(${hourAngle}deg) translateZ(5px)`;
+      
+      // 更新数字时间显示
+      const hoursDisplay = now.getHours().toString().padStart(2, '0');
+      const minutesDisplay = now.getMinutes().toString().padStart(2, '0');
+      const secondsDisplay = now.getSeconds().toString().padStart(2, '0');
+      digitalTime.textContent = `${hoursDisplay}:${minutesDisplay}:${secondsDisplay}`;
+      
+      // 更新日期显示
+      const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+      dateDisplay.textContent = now.toLocaleDateString('zh-CN', options);
+      
+      // 每秒更新一次
+      setTimeout(updateClock, 1000);
+    }
+    
+    // 处理键盘事件控制3D旋转
+    function handleKeyDown(e) {
+      // 阻止方向键导致页面滚动
+      if ([37, 38, 39, 40].includes(e.keyCode)) {
+        e.preventDefault();
+      }
+      
+      // 根据按键调整旋转角度
+      switch(e.keyCode) {
+        case 37: // 左箭头
+          rotateY -= rotationSpeed;
+          break;
+        case 39: // 右箭头
+          rotateY += rotationSpeed;
+          break;
+        case 38: // 上箭头
+          rotateX += rotationSpeed;
+          // 限制上下旋转角度，防止过度翻转
+          if (rotateX > 60) rotateX = 60;
+          break;
+        case 40: // 下箭头
+          rotateX -= rotationSpeed;
+          if (rotateX < -60) rotateX = -60;
+          break;
+      }
+      
+      // 应用旋转
+      clock.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+    }
+    
+    // 确保DOM加载完成后初始化
+    window.addEventListener('load', () => {
+      createClockMarkings();
+      createVisualizerBars();
+      drawAurora();
+      updateClock();
+      
+      // 添加事件监听
+      window.addEventListener('keydown', handleKeyDown);
+      musicToggle.addEventListener('click', toggleMusic);
+      
+      // 尝试自动播放音乐（可能会被浏览器阻止）
+      setTimeout(toggleMusic, 1000);
+      
+      // 允许用户点击页面任意位置触发音乐播放（解决自动播放限制）
+      document.body.addEventListener('click', () => {
+        if (backgroundMusic.paused && audioContext && audioContext.state === 'suspended') {
+          audioContext.resume();
+        }
+      }, { once: true });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>99乘法表</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            max-width: 1200px;
+            width: 100%;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .header {
+            background-color: #333;
+            font-weight: bold;
+        }
+        .row {
+            display: flex;
+        }
+        .cell {
+            margin: 8px;
+            padding: 4px;
+            
+        }
+        @media (max-width: 768px) {
+            .multiplication-table {
+                grid-template-columns: repeat(5, 1fr);
+            }
+        }
+        @media (max-width: 480px) {
+            .multiplication-table {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>99乘法表</h1>
+        <div class="multiplication-table1" id="multiplicationTable">
+            <!-- 乘法表将通过JS动态生成 -->
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const table = document.getElementById('multiplicationTable');
+            
+            // 创建表头
+            // const headerRow = document.createElement('div');
+            // headerRow.className = '';
+            // headerRow.textContent = '';
+            // table.appendChild(headerRow);
+            
+            // for (let i = 1; i <= 9; i++) {
+            //     const headerCell = document.createElement('div');
+            //     headerCell.className = 'cell header';
+            //     headerCell.textContent = i;
+            //     table.appendChild(headerCell);
+            // }
+            
+            // 创建乘法表内容
+            for (let i = 1; i <= 9; i++) {
+                const row = document.createElement('div');
+                row.className = 'row';
+                for (let j = 1; j <= 9; j++) {
+                    if (j > i ) {
+                        break
+                    }
+                    const item = document.createElement('div');
+                    item.className = 'cell'
+                    item.textContent = `${j} * ${i} = ${i * j}`
+                    row.appendChild(item);
+                }
+                table.appendChild(row)
+            }
+        });
+    </script>
+</body>
+</html>

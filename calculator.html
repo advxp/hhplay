@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>简易计算器</title>
+    <!-- 引入Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入Font Awesome -->
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    
+    <!-- 配置Tailwind自定义颜色 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#F97316',
+                        dark: '#1E293B',
+                        light: '#F8FAFC'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <!-- 自定义工具类 -->
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .calculator-shadow {
+                box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            }
+            .button-hover {
+                @apply transform transition-all duration-200 hover:scale-105 active:scale-95;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen flex items-center justify-center p-4 font-sans">
+    <!-- 计算器容器 -->
+    <div class="calculator-shadow bg-white rounded-2xl overflow-hidden max-w-xs w-full">
+        <!-- 显示区域 -->
+        <div class="bg-dark p-6">
+            <div id="display" class="text-right text-light text-4xl font-bold min-h-[60px] overflow-x-auto whitespace-nowrap">0</div>
+            <div id="history" class="text-right text-gray-400 text-sm mt-1 min-h-[20px]">
+                <!-- 计算历史将在这里显示 -->
+            </div>
+        </div>
+        
+        <!-- 按钮区域 -->
+        <div class="grid grid-cols-4 gap-1 p-2">
+            <!-- 第一行按钮 -->
+            <button class="bg-gray-200 hover:bg-gray-300 text-dark rounded-lg p-4 text-xl button-hover" data-action="clear">
+                C
+            </button>
+            <button class="bg-gray-200 hover:bg-gray-300 text-dark rounded-lg p-4 text-xl button-hover" data-action="backspace">
+                <i class="fa fa-backspace"></i>
+            </button>
+            <button class="bg-gray-200 hover:bg-gray-300 text-dark rounded-lg p-4 text-xl button-hover" data-action="percentage">
+                %
+            </button>
+            <button class="bg-secondary hover:bg-orange-500 text-white rounded-lg p-4 text-xl button-hover" data-action="divide">
+                ÷
+            </button>
+            
+            <!-- 第二行按钮 -->
+            <button class="bg-gray-100 hover:bg-gray-200 text-dark rounded-lg p-4 text-xl button-hover" data-number="7">
+                7
+            </button>
+            <button class="bg-gray-100 hover:bg-gray-200 text-dark rounded-lg p-4 text-xl button-hover" data-number="8">
+                8
+            </button>
+            <button class="bg-gray-100 hover:bg-gray-200 text-dark rounded-lg p-4 text-xl button-hover" data-number="9">
+                9
+            </button>
+            <button class="bg-secondary hover:bg-orange-500 text-white rounded-lg p-4 text-xl button-hover" data-action="multiply">
+                ×
+            </button>
+            
+            <!-- 第三行按钮 -->
+            <button class="bg-gray-100 hover:bg-gray-200 text-dark rounded-lg p-4 text-xl button-hover" data-number="4">
+                4
+            </button>
+            <button class="bg-gray-100 hover:bg-gray-200 text-dark rounded-lg p-4 text-xl button-hover" data-number="5">
+                5
+            </button>
+            <button class="bg-gray-100 hover:bg-gray-200 text-dark rounded-lg p-4 text-xl button-hover" data-number="6">
+                6
+            </button>
+            <button class="bg-secondary hover:bg-orange-500 text-white rounded-lg p-4 text-xl button-hover" data-action="subtract">
+                −
+            </button>
+            
+            <!-- 第四行按钮 -->
+            <button class="bg-gray-100 hover:bg-gray-200 text-dark rounded-lg p-4 text-xl button-hover" data-number="1">
+                1
+            </button>
+            <button class="bg-gray-100 hover:bg-gray-200 text-dark rounded-lg p-4 text-xl button-hover" data-number="2">
+                2
+            </button>
+            <button class="bg-gray-100 hover:bg-gray-200 text-dark rounded-lg p-4 text-xl button-hover" data-number="3">
+                3
+            </button>
+            <button class="bg-secondary hover:bg-orange-500 text-white rounded-lg p-4 text-xl button-hover" data-action="add">
+                +
+            </button>
+            
+            <!-- 第五行按钮 -->
+            <button class="bg-gray-100 hover:bg-gray-200 text-dark rounded-lg p-4 text-xl button-hover col-span-2" data-number="0">
+                0
+            </button>
+            <button class="bg-gray-100 hover:bg-gray-200 text-dark rounded-lg p-4 text-xl button-hover" data-number=".">
+                .
+            </button>
+            <button class="bg-primary hover:bg-blue-600 text-white rounded-lg p-4 text-xl button-hover" data-action="equals">
+                =
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // 获取DOM元素
+        const display = document.getElementById('display');
+        const history = document.getElementById('history');
+        const numberButtons = document.querySelectorAll('[data-number]');
+        const actionButtons = document.querySelectorAll('[data-action]');
+        
+        // 计算器状态
+        let currentValue = '0';
+        let previousValue = null;
+        let operator = null;
+        let resetOnNextInput = false;
+        
+        // 更新显示
+        function updateDisplay() {
+            // 限制显示长度，防止溢出
+            if (currentValue.length > 12) {
+                // 尝试用科学计数法显示
+                currentValue = Number(currentValue).toExponential(6);
+            }
+            display.textContent = currentValue;
+        }
+        
+        // 更新历史记录
+        function updateHistory() {
+            if (previousValue && operator) {
+                const operatorSymbol = {
+                    'add': '+',
+                    'subtract': '−',
+                    'multiply': '×',
+                    'divide': '÷'
+                }[operator] || operator;
+                
+                history.textContent = `${previousValue} ${operatorSymbol}`;
+            } else {
+                history.textContent = '';
+            }
+        }
+        
+        // 处理数字输入
+        numberButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const number = button.getAttribute('data-number');
+                
+                // 如果需要重置或当前显示为0，则直接替换
+                if (resetOnNextInput || currentValue === '0' && number !== '.') {
+                    currentValue = number;
+                    resetOnNextInput = false;
+                } else {
+                    // 防止多个小数点
+                    if (number === '.' && currentValue.includes('.')) {
+                        return;
+                    }
+                    // 限制长度
+                    if (currentValue.length < 12) {
+                        currentValue += number;
+                    }
+                }
+                
+                updateDisplay();
+            });
+        });
+        
+        // 处理操作
+        actionButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const action = button.getAttribute('data-action');
+                
+                switch (action) {
+                    case 'clear':
+                        // 清除所有内容
+                        currentValue = '0';
+                        previousValue = null;
+                        operator = null;
+                        updateHistory();
+                        break;
+                        
+                    case 'backspace':
+                        // 删除最后一个字符
+                        if (currentValue.length > 1) {
+                            currentValue = currentValue.slice(0, -1);
+                        } else {
+                            currentValue = '0';
+                        }
+                        break;
+                        
+                    case 'percentage':
+                        // 转换为百分比
+                        currentValue = (parseFloat(currentValue) / 100).toString();
+                        break;
+                        
+                    case 'equals':
+                        // 计算结果
+                        if (previousValue && operator) {
+                            calculateResult();
+                            previousValue = null;
+                            operator = null;
+                            updateHistory();
+                            resetOnNextInput = true;
+                        }
+                        break;
+                        
+                    default:
+                        // 处理运算符
+                        if (previousValue && operator && !resetOnNextInput) {
+                            // 如果已有运算符，先计算结果
+                            calculateResult();
+                        }
+                        
+                        previousValue = currentValue;
+                        operator = action;
+                        resetOnNextInput = true;
+                        updateHistory();
+                        break;
+                }
+                
+                updateDisplay();
+            });
+        });
+        
+        // 计算结果
+        function calculateResult() {
+            const prev = parseFloat(previousValue);
+            const current = parseFloat(currentValue);
+            let result;
+            
+            switch (operator) {
+                case 'add':
+                    result = prev + current;
+                    break;
+                case 'subtract':
+                    result = prev - current;
+                    break;
+                case 'multiply':
+                    result = prev * current;
+                    break;
+                case 'divide':
+                    // 防止除以零
+                    if (current === 0) {
+                        result = "错误";
+                    } else {
+                        result = prev / current;
+                    }
+                    break;
+                default:
+                    return;
+            }
+            
+            // 处理结果
+            if (result === "错误") {
+                currentValue = result;
+            } else {
+                // 移除不必要的小数位
+                currentValue = result % 1 === 0 ? result.toFixed(0) : result.toString();
+            }
+        }
+        
+        // 初始化显示
+        updateDisplay();
+    </script>
+</body>
+</html>
